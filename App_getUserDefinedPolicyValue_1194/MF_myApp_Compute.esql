@@ -1,0 +1,20 @@
+
+
+CREATE COMPUTE MODULE MF_myApp_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		CALL CopyEntireMessage();
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		DECLARE propValue CHARACTER;
+		
+		SET propValue = accessUDPolicy('{DefaultPolicies}:myApp', 'DSN');
+		SET OutputRoot.XMLNSC.root = propValue;
+	END;
+END MODULE;
+
+CREATE PROCEDURE accessUDPolicy (IN DefaultPolicies CHARACTER, IN prop CHARACTER) RETURNS CHARACTER
+LANGUAGE JAVA
+EXTERNAL NAME "javaPackage.MyPolicyAccessClass.getPolicyProperty";
