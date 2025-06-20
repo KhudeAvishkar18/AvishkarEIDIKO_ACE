@@ -11,7 +11,7 @@ CREATE COMPUTE MODULE MF_myApp_Compute
 		DECLARE propValue CHARACTER;
 		
 		SET propValue = accessUDPolicy('{DefaultPolicies}:myApp', 'DSN');
-		SET OutputRoot.XMLNSC.root = propValue;
+		SET OutputRoot.XMLNSC.root = propValue; 
 	END;
 END MODULE;
 
