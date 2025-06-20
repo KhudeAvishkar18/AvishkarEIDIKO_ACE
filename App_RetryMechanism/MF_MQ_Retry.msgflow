@@ -6,6 +6,7 @@
     <colorGraphic16 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/App_RetryMechanism/icons/full/obj16/MF_MQ_Retry.gif"/>
     <colorGraphic32 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/App_RetryMechanism/icons/full/obj30/MF_MQ_Retry.gif"/>
     <composition>
+
       <nodes xmi:type="ComIbmMQInput.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_1" location="102,79" queueName="q1" destinationQueueManagerName="newManager">
         <translation xmi:type="utility:ConstantString" string="MQ Input"/>
       </nodes>
