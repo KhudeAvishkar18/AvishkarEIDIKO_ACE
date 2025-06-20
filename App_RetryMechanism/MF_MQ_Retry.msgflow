@@ -12,7 +12,6 @@
       <nodes xmi:type="ComIbmMQOutput.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_2" location="480,79" queueName="q2" destinationQueueManagerName="newManager">
         <translation xmi:type="utility:ConstantString" string="MQ Output"/>
       </nodes>
-
       <nodes xmi:type="ComIbmFileInput.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_7" location="105,139" inputDirectory="C:\Users\Sreenivas Bandaru\Documents\in" retryMechanism="shortRetry" retryThreshold="5" shortRetryInterval="5" longRetryInterval="5">
         <translation xmi:type="utility:ConstantString" string="File Input"/>
       </nodes>
