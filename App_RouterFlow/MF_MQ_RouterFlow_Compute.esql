@@ -11,12 +11,8 @@ CREATE COMPUTE MODULE MF_MQ_RouterFlow_Compute
 		
 		DECLARE serviceCode integer InputLocalEnvironment.HTTP.Input.QueryString.serviceCode;
 		SET Environment.var.q = PASSTHRU('SELECT QUEUE FROM queuetable WHERE SERVICECODE = ?', serviceCode);
-		
 
-
-
-
-SET Environment.var.qmgr = PASSTHRU('SELECT QMANAGER FROM queuetable WHERE SERVICECODE = ?', serviceCode);
+		SET Environment.var.qmgr = PASSTHRU('SELECT QMANAGER FROM queuetable WHERE SERVICECODE = ?', serviceCode);
 
 		SET OutputRoot.MQMD.ReplyToQ = Environment.var.q.QUEUE;
 		SET OutputRoot.MQMD.ReplyToQMgr = Environment.var.qmgr.QMANAGER;
