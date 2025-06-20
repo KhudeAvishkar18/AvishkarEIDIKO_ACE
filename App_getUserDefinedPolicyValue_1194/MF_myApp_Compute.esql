@@ -6,7 +6,6 @@ CREATE COMPUTE MODULE MF_myApp_Compute
 		CALL CopyEntireMessage();
 		RETURN TRUE;
 	END;
-
 	CREATE PROCEDURE CopyEntireMessage() BEGIN
 		DECLARE propValue CHARACTER; 
 		
