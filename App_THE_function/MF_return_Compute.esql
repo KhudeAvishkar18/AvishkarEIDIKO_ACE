@@ -1,0 +1,14 @@
+
+
+CREATE COMPUTE MODULE MF_return_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		 CALL CopyEntireMessage();
+	END;
+	
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		DECLARE rowVar ROW;
+	    SET rowVar = THE(SELECT * FROM Database.AVISHKAR);
+		SET OutputRoot.XMLNSC.res = rowVar;
+	END;
+END MODULE;
