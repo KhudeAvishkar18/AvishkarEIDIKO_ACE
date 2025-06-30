@@ -1,0 +1,13 @@
+
+
+CREATE COMPUTE MODULE MF_backend_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		CALL CopyEntireMessage();
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		SET OutputRoot.JSON = InputRoot;
+	END;
+END MODULE;
