@@ -1,0 +1,21 @@
+
+
+CREATE COMPUTE MODULE postPost_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		CALL CopyEntireMessage();
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		
+--		Addition
+		SET OutputRoot.JSON.Data.result.sum = InputRoot.JSON.Data.root.num1 + InputRoot.JSON.Data.root.num2;
+--		Subtraction
+		SET OutputRoot.JSON.Data.result.subtraction = InputRoot.JSON.Data.root.num1 - InputRoot.JSON.Data.root.num2;
+--		Multiplication
+		SET OutputRoot.JSON.Data.result.product = InputRoot.JSON.Data.root.num1 * InputRoot.JSON.Data.root.num2;
+--		Division
+		SET OutputRoot.JSON.Data.result.division = InputRoot.JSON.Data.root.num1 / InputRoot.JSON.Data.root.num2;
+	END;
+END MODULE;

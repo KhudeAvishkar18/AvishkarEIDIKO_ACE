@@ -1,0 +1,50 @@
+{
+  "swagger" : "2.0",
+  "info" : {
+    "title" : "REST_Calculator_api",
+    "version" : "1.0.0",
+    "description" : "REST_Calculator_api"
+  },
+  "paths" : {
+    "/post" : {
+      "post" : {
+        "operationId" : "postPost",
+        "responses" : {
+          "200" : {
+            "description" : "The operation was successful.",
+            "schema" : {
+              "$ref" : "#/definitions/root"
+            }
+          }
+        },
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "description" : "Insert a post",
+        "parameters" : [ {
+          "name" : "body",
+          "in" : "body",
+          "schema" : {
+            "$ref" : "#/definitions/root"
+          },
+          "description" : "The request body for the operation",
+          "required" : true
+        } ]
+      }
+    }
+  },
+  "basePath" : "/rest_calculator_api/v1",
+  "definitions" : {
+    "root" : {
+      "type" : "object",
+      "properties" : {
+        "num1" : {
+          "type" : "integer"
+        },
+        "num2" : {
+          "type" : "integer"
+        }
+      },
+      "required" : [ "num1", "num2" ]
+    }
+  }
+}
