@@ -1,0 +1,33 @@
+
+
+CREATE COMPUTE MODULE n_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		 CALL CopyEntireMessage();
+		RETURN TRUE;
+	END;
+
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		
+--		Request data
+
+--		<body name="Khude">
+--    		<name>Avi</name>
+--		</body>
+		
+		DECLARE refVar REFERENCE TO InputRoot.XMLNSC.body;
+		
+		DECLARE name1 CHARACTER refVar.(XMLNSC.Attribute)name;
+		DECLARE name2 CHARACTER refVar.(XMLNSC.Field)name;
+		
+		SET OutputRoot.XMLNSC.body.(XMLNSC.Attribute)name = name2;
+		SET OutputRoot.XMLNSC.body.(XMLNSC.Field)name = name1;
+
+--		Response data
+
+--		<body name="Avi">
+--    		<name>Khude</name>
+--		</body>
+	END;
+END MODULE;
