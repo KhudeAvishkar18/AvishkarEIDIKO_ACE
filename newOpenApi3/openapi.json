@@ -1,0 +1,43 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "newOpenApi3",
+    "version": "1.0.0",
+    "description": "newOpenApi3"
+  },
+  "servers": [
+    {
+      "url": "/newopenapi3/v1"
+    }
+  ],
+  "components": {
+    "schemas": {}
+  },
+  "paths": {
+    "/convert": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "success"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/xml": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer"
+                  },
+                  "name": {}
+                },
+                "title": "root"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
