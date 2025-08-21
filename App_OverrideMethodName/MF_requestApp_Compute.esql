@@ -1,0 +1,18 @@
+
+
+CREATE COMPUTE MODULE MF_requestApp_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		CALL CopyEntireMessage();
+		RETURN TRUE;
+	END;
+
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		SET OutputRoot = InputRoot;
+		
+--		Overriding Method name
+		SET OutputLocalEnvironment.Destination.HTTP.RequestLine.Method = 'PUT';
+		
+	END;
+END MODULE;

@@ -1,0 +1,18 @@
+
+CREATE COMPUTE MODULE MF_xmlTojson_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		CALL CopyEntireMessage();
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		SET OutputRoot.JSON.Data = InputRoot.XMLNSC;
+		
+--		Setting status code
+		SET OutputLocalEnvironment.Destination.HTTP.ReplyStatusCode = '500';
+		
+--		After setting error status code, msg will route from error terminal of http request node and message domain will be BLOB.
+--		No exception will be generated, correct response will be given back to the client
+	END;
+END MODULE;
