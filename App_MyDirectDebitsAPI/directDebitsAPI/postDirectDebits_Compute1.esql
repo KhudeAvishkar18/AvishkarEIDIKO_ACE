@@ -1,0 +1,211 @@
+
+BROKER SCHEMA directDebitsAPI
+PATH commonLibrary;
+
+CREATE COMPUTE MODULE postDirectDebits_Compute1
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		CALL CopyEntireMessage();
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		
+		-- Declaring necessary variables
+		-- DECLARE encodeRef REFERENCE TO InputRoot.Properties.Encoding;
+		-- DECLARE ccidRef REFERENCE TO InputRoot.Properties.CodedCharSetId;
+		DECLARE application_name CHARACTER ApplicationLabel;
+		DECLARE flowName CHARACTER MessageFlowLabel;
+		DECLARE created_On TIMESTAMP CURRENT_TIMESTAMP;
+		CREATE FIELD Environment.Variables.Values;
+		DECLARE envRef REFERENCE TO Environment.Variables.Values;
+		DECLARE inRef REFERENCE TO InputRoot.XMLNSC;
+
+		-- Setting environment variables for logging
+		SET Environment.logType = 'HOST_RES';
+		SET Environment.payload = CAST(ASBITSTREAM(inRef) AS CHARACTER CCSID Environment.ccidRef ENCODING Environment.encodeRef);
+		
+		-- console logging
+		IF envRef.Consolelogflag = 'Y' THEN
+			LOG EVENT VALUES('HOST_RES: ', Environment.payload, application_name, MessageFlowLabel, Environment."X-Request-Id", created_On);
+		END IF;
+
+		-- db logging
+		IF envRef.Dbloggingflag = 'Y' THEN
+			CALL DB_LOGGING_PROC(created_On, application_name, flowName, OutputRoot, Environment);
+		END IF;
+
+		-- Setting Output response headers
+		CREATE FIELD OutputRoot.HTTPResponseHeader;
+		DECLARE resHeaders REFERENCE TO OutputRoot.HTTPResponseHeader;
+		SET resHeaders."X-Request-Id" = Environment."X-Request-Id";
+		SET resHeaders.servicecode = Environment.servicecode;
+		SET resHeaders.Dbloggingflag = envRef.Dbloggingflag;
+		SET resHeaders.Consolelogflag = envRef.Consolelogflag;
+
+		-- Creating json output field
+		CREATE FIELD OutputRoot.JSON.Data;
+		DECLARE outRef REFERENCE TO OutputRoot.JSON.Data;
+
+		-- Making reference variables of backend response
+		DECLARE inBodyRef REFERENCE TO InputRoot.XMLNSC.*:Envelope.*:Body.*:SBGenericTransferandPaymentsResponse.Status;
+		DECLARE fundsTransferTypeRef REFERENCE TO InputRoot.XMLNSC.*:Envelope.*:Body.*:SBGenericTransferandPaymentsResponse.FUNDSTRANSFERType;
+
+		-- Setting Output json Response based on various status codes from backend
+		SET outRef.statusCode = InputRoot.HTTPResponseHeader."X-Original-HTTP-Status-Code";
+		
+		-- Success case
+		IF inBodyRef.successIndicator = 'Success' THEN
+			--newly added 2.6
+			IF fundsTransferTypeRef.*:RECORDSTATUS='INAO' THEN
+				SET OutputRoot.HTTPResponseHeader."X-Original-HTTP-Status-Code" = 412;
+				SET outRef.statusCode = 412;
+				SET outRef.timestamp=CURRENT_TIMESTAMP;
+				SET outRef.title='PRECONDITION FAILED';
+				SET outRef.details='We were unable to proceed with your request as some preconditions were not met';
+				SET outRef.status='UNAUTHORIZED';
+				SET outRef.transactionId=inRef.Status.transactionId;
+				SET outRef.path=COALESCE(Environment.path, InputLocalEnvironment.REST.Input.Path);
+				SET Environment.errorRes = outRef.details;
+
+				IF Environment.Variables.Values.Dbloggingflag = 'Y' THEN
+					CALL ERROR_LOGGING_PROC(created_On, application_name, flowName, OutputRoot, Environment);
+				END IF;
+			ELSE
+				SET outRef.message = inBodyRef.successIndicator;
+				CREATE LASTCHILD OF OutputRoot.JSON.Data NAME 'data';
+				DECLARE outDataRef REFERENCE TO OutputRoot.JSON.Data.data;
+
+				SET outDataRef.transactionId = inBodyRef.transactionId;
+				SET outDataRef.clientTransactionId = fundsTransferTypeRef.*:NETTXNID;
+				SET outDataRef.transactionType = Environment.transactionType;
+				SET outDataRef.valueDate = fundsTransferTypeRef.*:CREDITVALUEDATE;
+				SET outDataRef.requestDate = fundsTransferTypeRef.*:REQUESTDATE;
+				SET outDataRef.debitAccount = fundsTransferTypeRef.*:DEBITACCTNO;
+				-- SET outDataRef.creditCardAccount = fundsTransferTypeRef.*:CREDITACCTNO;
+				SET outDataRef.creditCardAccount = fundsTransferTypeRef.*:gPAYMENTDETAILS.*:PAYMENTDETAILS;
+				-- SET outDataRef.processedAt = fundsTransferTypeRef.*:PROCESSINGDATE;
+				SET outDataRef.amount = fundsTransferTypeRef.*:CREDITAMOUNT;
+				SET outDataRef.currency = fundsTransferTypeRef.*:DEBITCURRENCY;
+				SET outDataRef.channel = fundsTransferTypeRef.*:SBCHANNEL;
+				-- SET outDataRef.creditAccount = fundsTransferTypeRef.*:CREDITACCTNO;
+				SET outDataRef.description = Environment.description; --fundsTransferTypeRef.*:DEBITTHEIRREF;
+				SET outDataRef.username = fundsTransferTypeRef.*:NETUSERNAME;
+
+				-- Setting environment variable for logging
+				SET Environment.logType = 'APP_RES';
+				SET Environment.payload = CAST(ASBITSTREAM (outRef)AS CHARACTER CCSID Environment.ccidRef ENCODING Environment.encodeRef);
+				
+				-- console logging
+				IF envRef.Consolelogflag = 'Y' THEN
+					LOG EVENT VALUES('APP_RES: ', Environment.payload, application_name, MessageFlowLabel, Environment."X-Request-Id", created_On);
+				END IF;
+				
+				-- db logging
+				IF envRef.Dbloggingflag = 'Y' THEN
+					CALL DB_LOGGING_PROC(created_On, application_name, flowName, OutputRoot, Environment);
+				END IF;
+
+			END IF;
+			
+		-- Failure case
+		ELSEIF CONTAINS(inBodyRef.messages, 'ERROR') THEN
+			SET OutputRoot.HTTPResponseHeader."X-Original-HTTP-Status-Code" = 422;
+			SET outRef.statusCode = 422; --InputRoot.HTTPResponseHeader."X-Original-HTTP-Status-Code";
+			SET outRef.timestamp = CURRENT_TIMESTAMP;
+			-- SET outRef.servicecode = Environment.servicecode;
+			SET outRef.title = 'Unprocessable Content'; --inBodyRef.successIndicator;
+			-- SET outRef.requestId = Environment."X-Request-Id";
+			SET outRef.details = 'Unfortunately, we are not able to proceed with this request';
+			SET outRef.status = 'Error';
+			SET outRef.path = COALESCE(Environment.path, InputLocalEnvironment.REST.Input.Path);
+			SET Environment.logType = 'APP_RES';
+			SET Environment.errorRes = outRef.details;
+			--SET Environment.payload = CAST(ASBITSTREAM (outRef)AS CHARACTER CCSID Environment.ccidRef ENCODING Environment.encodeRef);
+			
+			-- db logging but calling error logging procedure as we are gettint error status code
+			IF Environment.Variables.Values.Dbloggingflag = 'Y' THEN
+				CALL ERROR_LOGGING_PROC(created_On, application_name, flowName, OutputRoot, Environment);
+			END IF;
+			
+		-- Pending case
+		ELSEIF CONTAINS(inBodyRef.messages, 'PENDING') THEN
+			SET OutputRoot.HTTPResponseHeader."X-Original-HTTP-Status-Code" = 422;
+			SET outRef.statusCode = 422; --InputRoot.HTTPResponseHeader."X-Original-HTTP-Status-Code";
+			SET outRef.timestamp = CURRENT_TIMESTAMP;
+			-- SET outRef.servicecode = Environment.servicecode;
+			SET outRef.title = 'Unprocessable Content'; --inBodyRef.successIndicator;
+			-- SET outRef.requestId = Environment."X-Request-Id";
+			SET outRef.details = 'Unfortunately, we are not able to proceed with this request';
+			SET outRef.status = 'Error';
+			SET outRef.path = COALESCE(Environment.path, InputLocalEnvironment.REST.Input.Path);
+			SET Environment.logType = 'APP_RES';
+			SET Environment.errorRes = outRef.details;
+			--SET Environment.payload = CAST(ASBITSTREAM (outRef)AS CHARACTER CCSID Environment.ccidRef ENCODING Environment.encodeRef);
+			
+			-- db logging but calling error logging procedure as we are gettint error status code
+			IF Environment.Variables.Values.Dbloggingflag = 'Y' THEN
+				CALL ERROR_LOGGING_PROC(created_On, application_name, flowName, OutputRoot, Environment);
+			END IF;
+			
+		-- Processed case
+		ELSEIF CONTAINS(inBodyRef.messages, 'PROCESSED') THEN
+			SET OutputRoot.HTTPResponseHeader."X-Original-HTTP-Status-Code" = 422;
+			SET outRef.statusCode = 422; --InputRoot.HTTPResponseHeader."X-Original-HTTP-Status-Code";
+			SET outRef.timestamp = CURRENT_TIMESTAMP;
+			-- SET outRef.servicecode = Environment.servicecode;
+			SET outRef.title = 'Unprocessable Content'; --inBodyRef.successIndicator;
+			-- SET outRef.requestId = Environment."X-Request-Id";
+			SET outRef.details = 'A transaction with a similar identifier has already been processed';
+			SET outRef.status = 'PROCESSED';
+			--SET outRef.transactionId = inBodyRef.transactionId;
+			SET outRef.transactionId = SUBSTRING(inBodyRef.messages AFTER 'TRANSACTION.ID=');
+			SET outRef.path = COALESCE(Environment.path, InputLocalEnvironment.REST.Input.Path);
+			SET Environment.logType = 'APP_RES';
+			SET Environment.errorRes = outRef.details;
+			--SET Environment.payload = CAST(ASBITSTREAM (outRef)AS CHARACTER CCSID Environment.ccidRef ENCODING Environment.encodeRef);
+			
+			-- db logging but calling error logging procedure as we are gettint error status code
+			IF Environment.Variables.Values.Dbloggingflag = 'Y' THEN
+				CALL ERROR_LOGGING_PROC(created_On, application_name, flowName, OutputRoot, Environment);
+			END IF;
+			--newly added 2.7
+			
+		ELSEIF CONTAINS(inBodyRef.messages, 'INAO') OR CONTAINS(inBodyRef.messages, 'INAU') THEN
+			SET OutputRoot.HTTPResponseHeader."X-Original-HTTP-Status-Code" = 412;
+			SET outRef.statusCode = 412; --InputRoot.HTTPResponseHeader."X-Original-HTTP-Status-Code";
+			SET outRef.timestamp = CURRENT_TIMESTAMP;
+			SET outRef.title ='PRECONDITION FAILED';
+			SET outRef.details='We were unable to proceed with your request as some preconditions were not met';
+			SET outRef.status='UNAUTHORIZED';
+			--SET outRef.transactionId=inRef.Status.transactionId;
+			SET outRef.transactionId=SUBSTRING(inBodyRef.messages AFTER 'TRANSACTION.ID=');
+			SET outRef.path=COALESCE(Environment.path, InputLocalEnvironment.REST.Input.Path);
+			SET Environment.errorRes = outRef.details;
+
+			-- db logging but calling error logging procedure as we are gettint error status code
+			IF Environment.Variables.Values.Dbloggingflag = 'Y' THEN
+				CALL ERROR_LOGGING_PROC(created_On, application_name, flowName, OutputRoot, Environment);
+			END IF;
+			
+		ELSE
+			SET OutputRoot.HTTPResponseHeader."X-Original-HTTP-Status-Code" = 500;
+			SET outRef.statusCode = 500; --InputRoot.HTTPResponseHeader."X-Original-HTTP-Status-Code";
+			SET outRef.timestamp = CURRENT_TIMESTAMP;
+			SET outRef.path = COALESCE(Environment.path, InputLocalEnvironment.REST.Input.Path);
+			SET outRef.requestId = Environment."X-Request-Id";
+			SET outRef.servicecode = Environment.servicecode;
+			SET outRef.title = inBodyRef.successIndicator;
+			SET outRef.details = 'Unfortunately, an internal server error prevented us from proceeding with your request. Try again later.';
+			SET Environment.logType = 'APP_RES';
+			SET Environment.errorRes = outRef.details;
+			--SET Environment.payload = CAST(ASBITSTREAM (outRef)AS CHARACTER CCSID Environment.ccidRef ENCODING Environment.encodeRef);
+			
+			-- db logging but calling error logging procedure as we are gettint error status code
+			IF Environment.Variables.Values.Dbloggingflag = 'Y' THEN
+				CALL ERROR_LOGGING_PROC(created_On, application_name, flowName, OutputRoot, Environment);
+			END IF;
+		END IF;
+
+	END;
+END MODULE;

@@ -1,0 +1,170 @@
+
+BROKER SCHEMA directDebitsAPI
+PATH commonLibrary;
+
+-- Declaring external variables
+DECLARE businessIndicator EXTERNAL CHARACTER 'DIRECTDEBIT';
+DECLARE sourceType EXTERNAL CHARACTER 'ACM';
+
+-- Declaring namespaces
+DECLARE soapenv NAMESPACE 'http://schemas.xmlsoap.org/soap/envelope/';
+DECLARE cms NAMESPACE 'http://temenos.com/CMS-SERVICES';
+DECLARE fun NAMESPACE 'http://temenos.com/FUNDSTRANSFERSBMPAYMENTAPI100';
+
+CREATE COMPUTE MODULE postDirectDebits_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		CALL CopyEntireMessage();
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		-- Declaring necessary variables
+		DECLARE encodeRef REFERENCE TO InputRoot.Properties.Encoding;
+		DECLARE ccidRef REFERENCE TO InputRoot.Properties.CodedCharSetId;
+		DECLARE application_name CHARACTER ApplicationLabel;
+		DECLARE flowName CHARACTER MessageFlowLabel;
+		DECLARE created_On TIMESTAMP CURRENT_TIMESTAMP;
+		DECLARE inRef REFERENCE TO InputRoot.JSON.Data;
+		DECLARE headerRef REFERENCE TO InputRoot.HTTPInputHeader;
+		
+		-- Setting environment variables for logging purpose
+		SET Environment.encodeRef = encodeRef;
+		SET Environment.ccidRef = ccidRef;
+		SET Environment."X-Request-Id" = headerRef."X-Request-Id";
+		SET Environment.servicecode= headerRef.Servicecode;
+		SET Environment.logType = 'APP_REQ';
+		SET Environment.flowName = flowName;
+		SET Environment.description = inRef.description;
+		SET Environment.transactionType = inRef.transactionType;
+		SET Environment.path = InputLocalEnvironment.REST.Input.Path;
+
+		CREATE FIELD Environment.Variables.Values;
+		DECLARE envRef REFERENCE TO Environment.Variables.Values;
+		SET envRef.Dbloggingflag = headerRef.Dbloggingflag;
+		SET envRef.Consolelogflag = headerRef.Consolelogflag;
+		
+		-- Creating Environment.JSON.Data field and storing payload in it in character format
+		CREATE LASTCHILD OF Environment DOMAIN 'JSON';
+		CREATE FIELD Environment.JSON.Data;
+		SET Environment.JSON.Data = inRef ;
+		SET Environment.payload = CAST(ASBITSTREAM (Environment.JSON.Data)AS CHARACTER CCSID Environment.ccidRef ENCODING Environment.encodeRef);
+		
+		-- db logging
+		IF envRef.Dbloggingflag = 'Y' THEN
+			CALL DB_LOGGING_PROC(created_On, application_name, flowName, OutputRoot, Environment);
+		END IF;
+		
+		-- console logging
+		IF envRef.Consolelogflag = 'Y' THEN
+			LOG EVENT VALUES('APP_REQ: ', Environment.payload, application_name, MessageFlowLabel, Environment."X-Request-Id", created_On);
+		END IF;		
+		
+		
+		--------------------------------------- Framing T24 Request --------------------------------------------
+
+		CREATE FIELD OutputRoot;
+		CREATE LASTCHILD OF OutputRoot DOMAIN('XMLNSC');
+		
+		-- Giving namespaces inside Envelope tag of soap message structure
+		SET OutputRoot.XMLNSC.soapenv:Envelope.(XMLNSC.NamespaceDecl)xmlns:soapenv = soapenv;
+		SET OutputRoot.XMLNSC.soapenv:Envelope.(XMLNSC.NamespaceDecl)xmlns:cms = cms;
+		SET OutputRoot.XMLNSC.soapenv:Envelope.(XMLNSC.NamespaceDecl)xmlns:fun = fun;
+		
+		-- Setting soap header as empty
+		SET OutputRoot.XMLNSC.soapenv:Envelope.soapenv:Header = '';
+		
+		-- Creating 3 fields as a childs of cms namespace element called SBGenericTransferandPayments
+		CREATE LASTCHILD OF OutputRoot.XMLNSC.soapenv:Envelope.soapenv:Body.cms:SBGenericTransferandPayments NAME 'WebRequestCommon';
+		CREATE LASTCHILD OF OutputRoot.XMLNSC.soapenv:Envelope.soapenv:Body.cms:SBGenericTransferandPayments NAME 'OfsFunction';
+		CREATE LASTCHILD OF OutputRoot.XMLNSC.soapenv:Envelope.soapenv:Body.cms:SBGenericTransferandPayments NAME 'FUNDSTRANSFERSBMPAYMENTAPI100Type';
+		
+		-- Creating reference variable for WebRequestCommon and FUNDSTRANSFERSBMPAYMENTAPI100Type fields
+		DECLARE webReqRef REFERENCE TO OutputRoot.XMLNSC.soapenv:Envelope.soapenv:Body.cms:SBGenericTransferandPayments.WebRequestCommon;
+		DECLARE funTrPmtRef REFERENCE TO OutputRoot.XMLNSC.soapenv:Envelope.soapenv:Body.cms:SBGenericTransferandPayments.FUNDSTRANSFERSBMPAYMENTAPI100Type;
+		
+		-- Setting values inside webReqRef, by fetching from userDefined policy
+		SET webReqRef.company = getPolicyProperty('{standardBankPolicies}:userDefinedPolicy', 'COMMONCOMPANY') || SUBSTRING(inRef.debitAccount FROM 1 FOR 3);
+		SET webReqRef.password = getPolicyProperty('{standardBankPolicies}:userDefinedPolicy', 'PASSWORD');
+		SET webReqRef.userName = getPolicyProperty('{standardBankPolicies}:userDefinedPolicy', 'USERNAME');
+		
+		-- Setting value of OfsFunction element
+		SET OutputRoot.XMLNSC.soapenv:Envelope.soapenv:Body.cms:SBGenericTransferandPayments.OfsFunction = COALESCE(inRef.ofsFunction,'');
+		
+		-- Maps input JSON fields into T24 field i.e. inside fun namespace
+		SET funTrPmtRef.(XMLNSC.Attribute)id = ' ';
+		
+		-- SET funTrPmtRef.fun:OPERATION = 'PROCESS';
+		SET funTrPmtRef.fun:DEBITACCTNO = inRef.debitAccount; -- 120079461325874
+		SET funTrPmtRef.fun:DEBITTHEIRREF = 'Direct Debit'; --inRef.transactionType;
+		SET funTrPmtRef.fun:CREDITAMOUNT = inRef.amount; -- 450
+		SET funTrPmtRef.fun:gPAYMENTDETAILS.(XMLNSC.Attribute)g = '1';
+		SET funTrPmtRef.fun:gPAYMENTDETAILS.fun:PAYMENTDETAILS = inRef.creditCardAccount;
+		SET funTrPmtRef.fun:SBCHANNEL = inRef.channel; -- 1
+		SET funTrPmtRef.fun:NETTXNID = inRef.clientTransactionId; --UUIDASBLOB; --'32424';
+		SET funTrPmtRef.fun:REQUESTDATE = inRef.requestDate;
+		SET funTrPmtRef.fun:NETUSERNAME = inRef.username; --'JOSE';
+		SET funTrPmtRef.fun:LSOURCETYPE = sourceType; --'ACM';
+		SET funTrPmtRef.fun:LBUSINESSIND = businessIndicator; --'DIRECTDEBIT';	
+			
+		-- Final soap message will look like this :
+		/*
+		
+		<soapenv:Envelope
+			xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+			xmlns:cms="http://temenos.com/CMS-SERVICES"
+			xmlns:fun="http://temenos.com/FUNDSTRANSFERSBMPAYMENTAPI100">
+			
+			<soapenv:Header/>
+			
+			<soapenv:Body>
+				<cms:SBGenericTransferandPayments>
+				
+					<WebRequestCommon>
+						<company>SBK120</company>
+						<password>mypassword</password>
+						<userName>myuser</userName>
+					</WebRequestCommon>
+					
+					<OfsFunction>PROCESS</OfsFunction>
+					
+					<FUNDSTRANSFERSBMPAYMENTAPI100Type id=" ">
+						<fun:DEBITACCTNO>120079461325874</fun:DEBITACCTNO>
+						<fun:DEBITTHEIRREF>Direct Debit</fun:DEBITTHEIRREF>
+						<fun:CREDITAMOUNT>450</fun:CREDITAMOUNT>
+						<fun:gPAYMENTDETAILS g="1">
+						<fun:PAYMENTDETAILS>4111111111111111</fun:PAYMENTDETAILS>
+						</fun:gPAYMENTDETAILS>
+						<fun:SBCHANNEL>1</fun:SBCHANNEL>
+						<fun:NETTXNID>F204555o34</fun:NETTXNID>
+						<fun:REQUESTDATE>20240203</fun:REQUESTDATE>
+						<fun:NETUSERNAME>JOSE</fun:NETUSERNAME>
+						<fun:LSOURCETYPE>ACM</fun:LSOURCETYPE>
+						<fun:LBUSINESSIND>DIRECTDEBIT</fun:LBUSINESSIND>
+					</FUNDSTRANSFERSBMPAYMENTAPI100Type>
+					
+				</cms:SBGenericTransferandPayments>
+			</soapenv:Body>
+		</soapenv:Envelope>		 
+		
+		*/
+		
+		-- Setting logging parameters
+		SET Environment.logType = 'HOST_REQ';
+		SET Environment.payload = CAST(ASBITSTREAM (OutputRoot.XMLNSC)AS CHARACTER CCSID Environment.ccidRef ENCODING Environment.encodeRef);
+		
+		-- db logging
+		IF envRef.Dbloggingflag = 'Y' THEN
+			CALL DB_LOGGING_PROC(created_On, application_name, flowName, OutputRoot, Environment);
+		END IF;
+		
+		-- console logging
+		IF envRef.Consolelogflag = 'Y' THEN
+			LOG EVENT VALUES('HOST_REQ: ', Environment.payload, application_name, MessageFlowLabel, Environment."X-Request-Id", created_On);
+		END IF;
+		
+		-- Setting backend URL, fetching it from user defined policy
+		SET OutputLocalEnvironment.Destination.HTTP.RequestURL = getPolicyProperty('{standardBankPolicies}:userDefinedPolicy', 'T24_URL');
+
+	END;
+END MODULE;
