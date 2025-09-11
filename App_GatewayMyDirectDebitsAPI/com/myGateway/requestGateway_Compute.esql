@@ -1,0 +1,206 @@
+
+BROKER SCHEMA com.myGateway
+PATH commonLibrary;
+DECLARE service_code EXTERNAL CHARACTER '';
+
+CREATE COMPUTE MODULE requestGateway_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		CALL RequestToAPI();
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE RequestToAPI() BEGIN
+		
+		-- Declaring required variables
+		DECLARE encodeRef, ccidRef INTEGER;
+		DECLARE application_name CHARACTER ApplicationLabel;
+		DECLARE created_On TIMESTAMP CURRENT_TIMESTAMP;
+		DECLARE inref REFERENCE TO InputRoot.JSON.Data;
+		DECLARE routingDetails ROW;
+		DECLARE flowName CHARACTER MessageFlowLabel;
+		DECLARE headerRef REFERENCE TO InputRoot.HTTPInputHeader;
+		SET Environment.encodeRef = InputRoot.Properties.Encoding;
+		SET Environment.ccidRef = InputRoot.Properties.CodedCharSetId;
+		
+		-- Checking request-id is present in header or not
+		IF EXISTS(InputRoot.HTTPInputHeader[]) AND (LENGTH(headerRef."X-Request-Id")>0) THEN
+			SET Environment."X-Request-Id" = InputRoot.HTTPInputHeader."X-Request-Id";
+		ELSE
+			THROW USER EXCEPTION VALUES('X-Request-Id is missing in HTTP Header');
+		END IF;
+
+		-- Checking servicecode is present in header or not
+		IF EXISTS(InputRoot.HTTPInputHeader[]) AND (LENGTH(headerRef.Servicecode)>0) THEN
+			SET Environment.servicecode = InputRoot.HTTPInputHeader.Servicecode;
+		ELSE
+			THROW USER EXCEPTION VALUES('Servicecode is missing in HTTP Header');
+		END IF;
+		
+		-- Fetching encoding & ccsid value
+		SET encodeRef = InputRoot.Properties.Encoding;
+		SET ccidRef = InputRoot.Properties.CodedCharSetId;
+		
+		-- Setting environment variable for logging purpose
+		SET Environment.flowName = flowName;
+		SET Environment.logType = 'CHANNEL_REQ';
+		SET Environment.servicecode = headerRef.Servicecode;
+		
+		-- Fetching data from service_mapper table where servicecode = servicecode from header
+		--insert into Database.SERVICE_MAPPER values(10001, 'http://localhost:7800/advancepaymentbackoffice_app/v1/locked-amounts','Y','Netplus', 'Y');
+		SET routingDetails.Values[] = SELECT A.* FROM Database.SERVICE_MAPPER AS A WHERE A.SERVICECODE = (Environment.servicecode);
+		
+		/*SET Environment.Variables.Values[] = routingDetails.Values[];
+		SET queryStatement = 'SELECT * FROM SERVICE_MAPPER WHERE SERVICECODE = ?';
+		SET Environment.Values[] = PASSTHRU(queryStatement TO Database.SQLSERVER VALUES (Environment.servicecode)); --VALUES (Environment.servicecode));
+		*/
+		--CALL AUDIT_PROCEDURE(Environment.messageId, created_On, Environment.chlreq, 'Channel_Request', application_name);
+		--log EVENT values(Environment.messageId, created_On, Environment.chlreq, 'Channel_Request', application_name);
+		/* DECLARE serviceCode CHARACTER;
+		SET serviceCode = headerRef.Servicecode;
+		DECLARE detailsCount INTEGER;
+		DECLARE index INTEGER 1;
+		SET detailsCount = CARDINALITY(routingDetails.Values[]);
+		WHILE detailsCount >= index DO
+		IF serviceCode = routingDetails.Values[index].SERVICECODE THEN
+		SET OutputLocalEnvironment.Destination.HTTP.RequestURL = routingDetails.Values[index].URL;
+		ELSE
+		THROW USER EXCEPTION VALUES('No Service Code found');
+		END IF;
+		SET index = index + 1;
+		END WHILE;*/
+
+		-- If json input exist, storing it in environment variable after convertint it to character
+		IF EXISTS(InputRoot.JSON.Data[]) THEN
+			SET Environment.payload = CAST(ASBITSTREAM (inref)AS CHARACTER CCSID ccidRef ENCODING encodeRef);
+		END IF;
+		
+		
+		SET OutputLocalEnvironment.Destination.HTTP.RequestLine.Method = SUBSTRING(headerRef."X-Original-HTTP-Command" FROM 1 FOR 4);
+		DECLARE queryStringExists BOOLEAN EXISTS(InputLocalEnvironment.HTTP.Input.QueryString.[]);
+		DECLARE pathParamExists BOOLEAN EXISTS(InputLocalEnvironment.HTTP.Input.Path.[]);
+		DECLARE methodName CHARACTER (InputRoot.HTTPInputHeader."X-Original-HTTP-Command");
+		DECLARE methodName1 CHARACTER (SUBSTRING(methodName BEFORE ' '));
+		
+		-- Overriding http request url of http request node based on incoming methodname and some other conditions
+		-- If query params exists
+		IF queryStringExists = TRUE THEN
+			IF methodName1 = 'GET' THEN
+				SET OutputLocalEnvironment.Destination.HTTP.RequestURL = routingDetails.Values.URL;
+				SET OutputLocalEnvironment.Destination.HTTP.QueryString = InputLocalEnvironment.HTTP.Input.QueryString;
+			ELSEIF methodName1 = 'PUT' THEN
+				--SET OutputLocalEnvironment.Destination.HTTP.RequestLine.Method = 'PUT';
+				DECLARE pathRef REFERENCE TO InputLocalEnvironment.HTTP.Input.QueryString.[>];
+				DECLARE pathCount INTEGER CARDINALITY(InputLocalEnvironment.HTTP.Input.QueryString.[]);
+				DECLARE pathInit INTEGER 1;
+				
+				WHILE pathInit <= pathCount DO
+					DECLARE pathName CHARACTER FIELDVALUE(InputLocalEnvironment.HTTP.Input.QueryString.[pathInit]);
+					IF pathInit = 1 THEN
+						SET OutputLocalEnvironment.Destination.HTTP.RequestURL = routingDetails.Values.URL|| '/'||pathName;
+					ELSEIF pathInit > 1 THEN
+						SET OutputLocalEnvironment.Destination.HTTP.RequestURL = OutputLocalEnvironment.Destination.HTTP.RequestURL || '/'||pathName;
+					END IF;
+					SET pathInit = pathInit + 1;
+				END WHILE;
+				
+			END IF;
+			
+			--SET OutputLocalEnvironment.Destination.HTTP.RequestURL = routingDetails.Values.URL;
+			--SET OutputLocalEnvironment.Destination.HTTP.RequestURL = routingDetails.Values.URL||'?'||InputLocalEnvironment.HTTP.Input.QueryString.*;
+			/*ELSEIF pathParamExists = TRUE THEN
+			DECLARE segmentRef REFERENCE TO InputLocalEnvironment.HTTP.Input.Path.[>];
+			WHILE LASTMOVE(segmentRef) DO
+			--SET purCode = purCode || ','||purRef.credit_account.purpose_code;
+			SET OutputLocalEnvironment.Destination.HTTP.RequestURL = routingDetails.Values.URL|| '/'||FIELDVALUE(segmentRef.*);
+			MOVE segmentRef NEXTSIBLING;
+			END WHILE;
+			SET OutputRoot = InputRoot;*/
+			--SET OutputLocalEnvironment.Destination.HTTP.
+			
+			DECLARE paramsRef REFERENCE TO InputLocalEnvironment.HTTP.Input.QueryString;
+			CREATE LASTCHILD OF Environment DOMAIN 'JSON';
+			CREATE FIELD Environment.JSON.Data;
+			SET Environment.JSON.Data = paramsRef;
+			SET Environment.payload = CAST(ASBITSTREAM (Environment.JSON.Data)AS CHARACTER CCSID Environment.ccidRef ENCODING Environment.encodeRef);
+			-- ELSEIF methodName1 = 'POST' THEN
+			-- SET OutputRoot = InputRoot;
+			-- SET OutputLocalEnvironment.Destination.HTTP.RequestURL = routingDetails.Values.URL;
+		
+		-- IF method name is POST
+		ELSEIF methodName1 = 'POST' THEN
+			SET OutputRoot = InputRoot;
+
+			IF service_code=Environment.servicecode THEN
+				SET OutputLocalEnvironment.Destination.HTTP.RequestURL=REPLACE(routingDetails.Values.URL,'{transactionId}',InputLocalEnvironment.HTTP.Input.Path.[<]);
+			ELSE
+				SET OutputLocalEnvironment.Destination.HTTP.RequestURL = routingDetails.Values.URL;
+			END IF;
+			
+		-- If path params exist
+		ELSEIF pathParamExists = true THEN
+			DECLARE methodName CHARACTER (InputRoot.HTTPInputHeader."X-Original-HTTP-Command");
+			DECLARE methodName1 CHARACTER (SUBSTRING(methodName BEFORE ' '));
+			
+			IF methodName1 = 'GET' OR methodName1 = 'PUT' THEN
+				CREATE LASTCHILD OF Environment DOMAIN 'JSON';
+				CREATE FIELD Environment.JSON.Data;
+				SET Environment.JSON.Data = InputLocalEnvironment.HTTP.Input.Path;
+				SET Environment.payload = CAST(ASBITSTREAM(Environment.JSON.Data) AS CHARACTER CCSID Environment.ccidRef ENCODING Environment.encodeRef);
+				SET OutputLocalEnvironment.Destination.HTTP.RequestURL = routingDetails.Values.URL || '/'|| InputLocalEnvironment.HTTP.Input.Path.[<];
+				SET OutputLocalEnvironment.Destination.HTTP.QueryString = InputLocalEnvironment.HTTP.Input.Path;
+			END IF;
+			
+			DECLARE count INT CARDINALITY(InputLocalEnvironment.HTTP.Input.Path.*[]);
+			IF count > 5 THEN
+				CREATE LASTCHILD OF Environment DOMAIN 'JSON';
+				CREATE FIELD Environment.JSON.Data;
+				SET Environment.JSON.Data = InputLocalEnvironment.HTTP.Input.Path;
+				SET Environment.payload = CAST(ASBITSTREAM(Environment.JSON.Data) AS CHARACTER CCSID Environment.ccidRef ENCODING Environment.encodeRef);
+				SET OutputLocalEnvironment.Destination.HTTP.RequestURL = routingDetails.Values.URL || '/'|| InputLocalEnvironment.HTTP.Input.Path.[5] || '/'||InputLocalEnvironment.HTTP.Input.Path.[<];
+				SET OutputLocalEnvironment.Destination.HTTP.QueryString = InputLocalEnvironment.HTTP.Input.Path;
+			END IF;
+			
+		END IF;
+
+		-- db logging
+		IF routingDetails.Values.DBLOGGINGFLAG = 'Y' THEN
+			CALL DB_LOGGING_PROC(created_On, application_name, flowName, OutputRoot, Environment);
+			
+			--CALL DB_LOGGING_PROC(Environment.id, created_On, Environment.chlreq, application_name, 'CHANNEL_REQ', logger_name, Environment.servicecode, OutputRoot, Environment);
+			/*SET OutputRoot.XMLNSC.DBLogging.id = Environment.id;
+			SET OutputRoot.XMLNSC.DBLogging.created_On = created_On;
+			SET OutputRoot.XMLNSC.DBLogging.payload = Environment.chlreq;
+			SET OutputRoot.XMLNSC.DBLogging.application_name = application_name;
+			SET OutputRoot.XMLNSC.DBLogging.reqType = 'CHANNEL_REQ';
+			PROPAGATE TO TERMINAL 'out1';*/
+		END IF;
+
+		-- console logging
+		IF routingDetails.Values.CONSOLELOGFLAG = 'Y' THEN
+			LOG EVENT VALUES('CHANNEL_REQ: ', Environment.payload, application_name, MessageFlowLabel, Environment."X-Request-Id", created_On);
+		END IF;
+		
+		-- IF LENGTH(CAST(routingDetails.Values.SERVICECODE AS CHARACTER)) = 0 THEN
+		
+		-- If data is not fetched from database then throw exception
+		IF EXISTS(routingDetails.[]) = FALSE THEN
+			/*CREATE FIELD OutputRoot.JSON.Data;
+			DECLARE errOutRef REFERENCE TO OutputRoot.JSON.Data;
+			SET errOutRef.statusCode = '999';
+			SET errOutRef.message = 'Internal Server Error';
+			SET errOutRef.error.messagId = Environment.id;
+			SET errOutRef.error.error_desc = 'No Service Code found';
+			PROPAGATE TO TERMINAL 'out2';*/
+			--SET errOutRef.additionalData =
+			THROW USER EXCEPTION VALUES('No Service Code found');
+		END IF;
+
+		-- Set Output http headers
+		SET OutputRoot.HTTPInputHeader = InputRoot.HTTPInputHeader;
+		--SET OutputRoot.HTTPInputHeader.messageId = Environment.id;
+		SET OutputRoot.HTTPInputHeader.DBLOGGINGFLAG = routingDetails.Values.DBLOGGINGFLAG;
+		SET OutputRoot.HTTPInputHeader.CONSOLELOGFLAG = routingDetails.Values.CONSOLELOGFLAG;
+
+	END;
+END MODULE;
