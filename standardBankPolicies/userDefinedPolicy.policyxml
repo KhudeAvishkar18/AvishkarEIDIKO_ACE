@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<policies>
+  <policy policyType="UserDefined" policyName="userDefinedPolicy" policyTemplate="UserDefined">
+    <COMPANY>MZ0010196</COMPANY>
+    <COMMONCOMPANY>MZ0010</COMMONCOMPANY>
+    <PASSWORD>AAaa.1234567</PASSWORD>
+    <USERNAME>ACMUSER0</USERNAME>
+    <T24_URL>http://localhost:7800/transform</T24_URL>
+  </policy>
+</policies>
