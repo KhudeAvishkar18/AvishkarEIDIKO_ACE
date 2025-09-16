@@ -6,10 +6,10 @@
     <colorGraphic16 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/App_MergeMsgMQInputGet/icons/full/obj16/MF_merge.gif"/>
     <colorGraphic32 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/App_MergeMsgMQInputGet/icons/full/obj30/MF_merge.gif"/>
     <composition>
-      <nodes xmi:type="ComIbmMQGet.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_1" location="226,56" queueName="q2" destinationQueueManagerName="newManager" messageDomainProperty="XMLNSC" copyMessage="copyEntireMessage" browse="true" outputDataLocation="OutputRoot.XMLNSC.root.city" resultDataLocation="ResultRoot.XMLNSC.city">
+      <nodes xmi:type="ComIbmMQGet.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_1" location="226,56" queueName="q2" destinationQueueManagerName="newManager" messageDomainProperty="JSON" copyMessage="copyEntireMessage" browse="true" outputDataLocation="OutputRoot.JSON.Data.root.city" resultDataLocation="ResultRoot.JSON.Data">
         <translation xmi:type="utility:ConstantString" string="MQ Get"/>
       </nodes>
-      <nodes xmi:type="ComIbmMQInput.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_2" location="136,56" queueName="q1" destinationQueueManagerName="newManager" messageDomainProperty="XMLNSC">
+      <nodes xmi:type="ComIbmMQInput.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_2" location="136,56" queueName="q1" destinationQueueManagerName="newManager" messageDomainProperty="JSON">
         <translation xmi:type="utility:ConstantString" string="MQ Input"/>
       </nodes>
       <nodes xmi:type="ComIbmMQOutput.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_3" location="345,51" queueName="q3" destinationQueueManagerName="newManager">
@@ -21,7 +21,7 @@
     <propertyOrganizer/>
     <stickyBoard>
       <stickyNote location="226,145" association="FCMComposite_1_1">
-        <body xmi:type="utility:ConstantString" string="In input xmlnsc msg is comming&#xA;&lt;root>&#xA;&lt;id>1194&lt;/id>&#xA;&lt;/root>&#xA;In this msg result root will be merged&#xA;&lt;root>&#xA;&lt;id>1194&lt;/id>&#xA;&lt;city>Pune&lt;/city>&#xA;&lt;/root>&#xA;"/>
+        <body xmi:type="utility:ConstantString" string="In input xmlnsc msg is comming&#xA;&lt;root>&#xA;&lt;id>1194&lt;/id>&#xA;&lt;/root>&#xA;In this msg result root will be merged&#xA;&lt;city>Pune>&#xA;to give final merged msg :&#xA;&lt;root>&#xA;&lt;id>1194&lt;/id>&#xA;&lt;city>Pune&lt;/city>&#xA;&lt;/root>&#xA;Even if you do the same for JSON data,&#xA;final output msg will be in xml only."/>
       </stickyNote>
     </stickyBoard>
   </eClassifiers>
