@@ -1,0 +1,84 @@
+BROKER SCHEMA FileProcess_SIMOtoACM
+PATH myACMtoSIMO_CommonLibrary;
+
+-- Declaring external variables
+DECLARE Parent_dir EXTERNAL CHARACTER '';
+DECLARE username EXTERNAL CHARACTER '';
+DECLARE password EXTERNAL CHARACTER '';
+DECLARE host EXTERNAL CHARACTER '';
+DECLARE out_Directory EXTERNAL CHARACTER '';
+DECLARE backup_Directory EXTERNAL CHARACTER '';
+DECLARE retry_count EXTERNAL INTEGER 0;
+
+DECLARE mailRecipient EXTERNAL CHARACTER '';
+DECLARE mailRecipient1 EXTERNAL CHARACTER '';
+DECLARE mailRecipient2 EXTERNAL CHARACTER '';
+DECLARE mailRecipient3 EXTERNAL CHARACTER '';
+DECLARE mailSender EXTERNAL CHARACTER '';
+
+
+CREATE COMPUTE MODULE MF_mySIMOtoACM_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- Declaring necessary variables
+		DECLARE file_name CHARACTER;
+		DECLARE folder_name CHARACTER;
+		DECLARE folder_checker BOOLEAN false;
+		DECLARE java_result CHARACTER;
+		DECLARE exception_data CHARACTER '';
+		DECLARE log_time TIMESTAMP CURRENT_TIMESTAMP;
+		DECLARE var CHARACTER;
+		--DECLARE main_dir CHARACTER '/home/sftpUser/simo/';
+		DECLARE main_dir CHARACTER;
+		SET main_dir = Parent_dir;
+		
+		-- Passing entire msg forward
+		SET OutputRoot = InputRoot;
+		
+		-- Setting Input directory for file read node
+		DECLARE cur_date Date CURRENT_Date;
+		SET var = CAST(cur_date AS CHARACTER Format 'yyyyMMdd');
+		-- SET OutputLocalEnvironment.Destination.File.Remote.ServerDirectory = main_dir||var; -- for sftp
+		SET OutputLocalEnvironment.Destination.File.Directory = main_dir || var; -- for local execution
+		
+		-- Console logging
+		LOG EVENT VALUES('Scheduler has initiated the transaction now processing further with current date folder checking','FileProcess_SIMO_TO_ACM',CURRENT_TIMESTAMP);
+			
+		-- Calling java routine to check whether folder exists
+		call read_Remote_folders(Parent_dir,username,host,password) into java_result;
+			
+		-- Logic to handle the presence or absence of folder
+		IF(java_result = 'true') THEN
+			LOG EVENT VALUES('Current date folder is present in simo server path =/standard-qa/receber','FileProcess_SIMO_TO_ACM',CURRENT_TIMESTAMP);
+			RETURN TRUE;
+		ELSEIF(java_result = 'false') THEN
+			LOG EVENT VALUES('Current date folder is not present in simo server path =/standard-qa/receber','FileProcess_SIMO_TO_ACM',CURRENT_TIMESTAMP);
+			RETURN FALSE;
+		ELSE 	
+			
+			SET OutputRoot.JSON = NULL;
+			SET OutputRoot.EmailOutputHeader.To = mailRecipient||','||mailRecipient1||','||mailRecipient2||','||mailRecipient3;
+			SET OutputRoot.EmailOutputHeader.From = mailSender;
+			SET OutputRoot.EmailOutputHeader.Subject = 'ALERT!!! unable to pick the file from SIMO sftp server';
+			SET exception_data = 'Hi team, we observed that there is a SFTP Connectivity issue through java, Hence unable to process the file from the source- SIMO.';
+			SET OutputRoot.BLOB.BLOB = CAST(exception_data AS BLOB CCSID 1208 ENCODING 546);
+			SET OutputLocalEnvironment.Destination.Email.Attachment.Content = InputRoot.BLOB.BLOB;
+			SET OutputLocalEnvironment.Destination.Email.Attachment.ContentName = InputLocalEnvironment.Destination.File.Name;
+			
+			-- Error logging to console
+			LOG EVENT VALUES('Error Details: ', java_result, 'FileProcess_SIMO_TO_ACM', CURRENT_TIMESTAMP);
+			
+			PROPAGATE TO TERMINAL 'out1';
+			RETURN FALSE;
+		END IF;
+
+		RETURN TRUE;
+	END;
+
+-- Creation of esql procedure for Java routine
+CREATE PROCEDURE read_Remote_folders(IN dir CHARACTER, IN user CHARACTER, IN host CHARACTER, IN pass_word CHARACTER) RETURNS CHARACTER
+LANGUAGE JAVA
+EXTERNAL NAME "FileProcess_SIMO_TO_ACM_pack.MF_mySIMOtoACM_JavaCompute.folder_checker";
+
+	
+END MODULE;

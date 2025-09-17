@@ -1,0 +1,50 @@
+BROKER SCHEMA FileProcess_SIMOtoACM
+PATH myACMtoSIMO_CommonLibrary;
+
+CREATE COMPUTE MODULE MF_mySIMOtoACM_Compute1
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		
+		SET count = 0;
+		DECLARE file_name CHARACTER;
+		DECLARE folder_name CHARACTER;
+		SET OutputRoot = InputRoot;
+		SET OutputLocalEnvironment = NULL;
+		
+		-- Setting fileName and output directory for file output node
+--		SET OutputLocalEnvironment.Destination.File.Remote.ServerDirectory=out_Directory; -- for sftp
+		SET OutputLocalEnvironment.Destination.File.Directory = out_Directory; -- for local execution
+		SET OutputLocalEnvironment.Destination.File.Name = InputLocalEnvironment.File.Read.Name;
+		
+		-- Actual code
+--		SET file_name = InputLocalEnvironment.File.Read.TransferredFile.FileName;
+--		SET folder_name= InputLocalEnvironment.File.Read.TransferredFile.ServerDirectory;
+
+		-- My code
+		SET file_name = InputLocalEnvironment.File.Read.Name;
+		SET folder_name = InputLocalEnvironment.File.Read.Directory;
+		
+		-- Setting environment variables for logging
+		SET Environment.filename = file_name;
+		SET Environment.fileprocessing = 'file_fetched from SIMO';
+		SET Environment.status = 'success';
+		set Environment.APPNAME = ApplicationLabel;
+		set Environment.FLOWNAME = MessageFlowLabel;
+		DECLARE CREATED_ON CHARACTER;
+		set Environment.CREATED_ON = CAST(CURRENT_TIMESTAMP as CHARACTER);
+		
+		-- db logging
+		CALL DB_LOGGING_PROC(Environment);
+		COMMIT;
+		
+		-- console logging
+		LOG EVENT VALUES('File Successfully fetched from SIMO Current date directory',Environment.APPNAME,Environment.FLOWNAME,file_name,folder_name,CURRENT_TIMESTAMP);
+		--PROPAGATE TO TERMINAL 'out1';
+		
+		PROPAGATE TO TERMINAL 'out' DELETE NONE;
+--		SET OutputLocalEnvironment.Destination.File.Remote.ServerDirectory=backup_Directory; -- for sftp Actual code
+		SET OutputLocalEnvironment.Destination.File.Directory = backup_Directory; -- for local execution My code
+		
+		RETURN TRUE;
+	END;
+END MODULE;

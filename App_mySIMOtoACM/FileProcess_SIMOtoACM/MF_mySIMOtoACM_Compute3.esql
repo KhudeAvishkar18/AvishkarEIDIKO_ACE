@@ -1,0 +1,15 @@
+BROKER SCHEMA FileProcess_SIMOtoACM
+
+CREATE COMPUTE MODULE MF_mySIMOtoACM_Compute3
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- Converting date in character
+		DECLARE cur_date Date CURRENT_Date;
+		DECLARE var CHARACTER;
+		SET var= CAST(cur_date AS CHARACTER Format 'yyyyMMdd');
+
+		-- console logging
+		LOG EVENT VALUES('No file present in simo server path =/standard-qa/receber/'||var,'FileProcess_SIMO_TO_ACM',CURRENT_TIMESTAMP);
+		RETURN TRUE;
+	END;
+END MODULE;

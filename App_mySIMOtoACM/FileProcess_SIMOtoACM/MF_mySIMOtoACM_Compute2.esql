@@ -1,0 +1,44 @@
+BROKER SCHEMA FileProcess_SIMOtoACM
+PATH myACMtoSIMO_CommonLibrary;
+--DECLARE out_Directory EXTERNAL CHARACTER '';
+
+CREATE COMPUTE MODULE MF_mySIMOtoACM_Compute2
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- Declaring necessary variables
+		SET count = 0;
+		DECLARE file_name CHARACTER;
+		DECLARE folder_name CHARACTER;
+		
+		-- Accessing fileName and output folder name
+		SET file_name = InputLocalEnvironment.WrittenDestination.File.Name;
+		--SET folder_name='/home/sftpUser/SIMOIN/DPINPUT';
+		-- SET folder_name = out_Directory; -- actual code
+		SET folder_name = InputLocalEnvironment.WrittenDestination.File.Directory;
+		
+		-- Setting environment variables for logging
+		-- My code
+		IF CONTAINS(folder_name, 'Backup') THEN
+			SET Environment.fileprocessing = 'file_sent to Backup';
+		ELSE
+			SET Environment.fileprocessing = 'file_sent to ACM';
+		END IF;
+		-- SET Environment.fileprocessing = 'file_sent to ACM';	-- Actual code
+		SET Environment.filename = file_name;
+		SET Environment.status = 'success';
+		set Environment.APPNAME = ApplicationLabel;
+		set Environment.FLOWNAME = MessageFlowLabel;
+		DECLARE CREATED_ON CHARACTER;
+		set Environment.CREATED_ON = CAST(CURRENT_TIMESTAMP as CHARACTER);
+		
+		-- db logging
+		CALL DB_LOGGING_PROC(Environment);
+		
+		-- console logging
+		LOG EVENT VALUES ('File successfully sent to ACM Static destination directory', Environment.APPNAME, Environment.FLOWNAME, file_name, folder_name, CURRENT_TIMESTAMP);
+		
+		RETURN FALSE;
+		
+	END;
+
+END MODULE;

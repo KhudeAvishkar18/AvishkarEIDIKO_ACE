@@ -1,0 +1,62 @@
+BROKER SCHEMA FileProcess_SIMOtoACM
+
+
+CREATE COMPUTE MODULE SIMOtoACM_subFlow_SMTP_ErrorLogging
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		
+		DECLARE exception_data CHARACTER '';
+		DECLARE My_label CHARACTER;
+		DECLARE error_ref ROW;
+		DECLARE inref REFERENCE TO InputExceptionList.*[1];
+			
+			DECLARE Total_Exc CHARACTER '';
+			
+			--code to get actual exception
+			IF(NOT CONTAINS(FIELDNAME(inref.[<]),'Exception')) THEN
+				SET My_label = FIELDNAME(InputExceptionList.*[1]);
+				
+				SET Total_Exc = Total_Exc|| COALESCE(CAST(inref.Number as CHARACTER),'') || ':' || COALESCE(inref.Text, '') || ':'|| COALESCE(inref.Label, '') ||'|';
+				
+				SET error_ref=inref;
+			ELSE
+				X:WHILE(EXISTS(inref.[])) DO 
+					IF(NOT CONTAINS(FIELDNAME(inref.[<]),'Exception')) THEN
+						SET error_ref=inref;
+						LEAVE X;
+					END IF;
+					
+					SET Total_Exc = Total_Exc|| COALESCE(CAST(inref.Number as CHARACTER),'') || ':' || COALESCE(inref.Text, '') || ':'|| COALESCE(inref.Label, '') ||'|';
+					
+					SET My_label=FIELDNAME(inref.[<]);
+					MOVE inref LASTCHILD;
+				END WHILE;
+			END IF;
+		
+		SET Total_Exc=Total_Exc||'|'||COALESCE(error_ref.[<].Text,'');
+		
+		
+		SET exception_data=Total_Exc;
+		DECLARE myexc CHARACTER '';
+		DECLARE my_ref REFERENCE TO inref.[>];
+		while LASTMOVE(my_ref) DO
+		 -- IF field name condition
+		 IF(EXISTS(my_ref.Text[]))THEN
+		 
+			SET myexc=myexc||'| '||my_ref.Text;
+		END IF;
+			
+			MOVE my_ref NEXTSIBLING;
+	
+		END WHILE;
+		
+		SET exception_data= exception_data||'| '||myexc;
+		
+		LOG EVENT VALUES('Error Details: ',exception_data,'FileProcess_SIMO_TO_ACM',CURRENT_TIMESTAMP);
+		
+		
+		--LOG EVENT VALUES('SMTP server is down unable to send mail','FileProcess_SIMO_TO_ACM',CURRENT_TIMESTAMP);
+		RETURN TRUE;
+	END;
+
+END MODULE;
