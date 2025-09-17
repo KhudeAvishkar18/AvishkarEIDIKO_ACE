@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ecore:EPackage xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:ComIbmCompute.msgnode="ComIbmCompute.msgnode" xmlns:ComIbmFileInput.msgnode="ComIbmFileInput.msgnode" xmlns:ComIbmFileOutput.msgnode="ComIbmFileOutput.msgnode" xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" xmlns:eflow="http://www.ibm.com/wbi/2005/eflow" xmlns:fileProcessACMtoSIMOpack_fileProcessACMtoSIMO_subflow.subflow="fileProcessACMtoSIMOpack/fileProcessACMtoSIMO_subflow.subflow" xmlns:utility="http://www.ibm.com/wbi/2005/eflow_utility"
+    nsURI="fileProcess_ACMtoSIMO/MF_myACMtoSIMO.msgflow" nsPrefix="fileProcess_ACMtoSIMO_MF_myACMtoSIMO.msgflow">
+  <eClassifiers xmi:type="eflow:FCMComposite" name="FCMComposite_1" nodeLayoutStyle="SQUARE">
+    <eSuperTypes href="http://www.ibm.com/wbi/2005/eflow#//FCMBlock"/>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.Inputfolder_name" name="Inputfolder_name" defaultValueLiteral="C:\Users\Sreenivas Bandaru\Documents\in">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.Parent_dir" name="Parent_dir" defaultValueLiteral="C:\Users\Sreenivas Bandaru\Documents\out">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <translation xmi:type="utility:TranslatableString" key="MF_myACMtoSIMO" bundleName="fileProcess_ACMtoSIMO/MF_myACMtoSIMO" pluginId="App_myACMtoSIMO"/>
+    <colorGraphic16 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/App_myACMtoSIMO/icons/full/obj16/MF_myACMtoSIMO.gif"/>
+    <colorGraphic32 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/App_myACMtoSIMO/icons/full/obj30/MF_myACMtoSIMO.gif"/>
+    <composition>
+      <nodes xmi:type="ComIbmFileInput.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_1" location="34,63" inputDirectory="C:\Users\Sreenivas Bandaru\Documents\in" messageDomainProperty="BLOB">
+        <translation xmi:type="utility:ConstantString" string="Pick_file_from_ACM"/>
+      </nodes>
+      <nodes xmi:type="ComIbmCompute.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_2" location="209,60" dataSource="AVIDSN" transaction="commit" computeExpression="esql://routine/fileProcess_ACMtoSIMO#MF_myACMtoSIMO_ACMtoSIMO.Main" computeMode="destinationAndMessage">
+        <translation xmi:type="utility:ConstantString" string="ACMtoSIMO"/>
+      </nodes>
+      <nodes xmi:type="ComIbmFileOutput.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_3" location="324,65">
+        <translation xmi:type="utility:ConstantString" string="Drop_File_Into_Simo"/>
+      </nodes>
+      <nodes xmi:type="ComIbmCompute.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_4" location="491,64" dataSource="AVIDSN" transaction="commit" computeExpression="esql://routine/fileProcess_ACMtoSIMO#MF_myACMtoSIMO_Logging.Main" computeMode="destinationAndMessage">
+        <translation xmi:type="utility:ConstantString" string="Logging"/>
+      </nodes>
+      <nodes xmi:type="fileProcessACMtoSIMOpack_fileProcessACMtoSIMO_subflow.subflow:FCMComposite_1" xmi:id="FCMComposite_1_5" location="219,146" rotation="RIGHT_TO_LEFT">
+        <translation xmi:type="utility:ConstantString" string="fileProcessACMtoSIMO_subflow"/>
+      </nodes>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_1" targetNode="FCMComposite_1_2" sourceNode="FCMComposite_1_1" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_2" targetNode="FCMComposite_1_3" sourceNode="FCMComposite_1_2" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_3" targetNode="FCMComposite_1_4" sourceNode="FCMComposite_1_3" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_4" targetNode="FCMComposite_1_5" sourceNode="FCMComposite_1_3" sourceTerminalName="OutTerminal.failure" targetTerminalName="InTerminal.Input"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_5" targetNode="FCMComposite_1_3" sourceNode="FCMComposite_1_5" sourceTerminalName="OutTerminal.Output" targetTerminalName="InTerminal.in"/>
+    </composition>
+    <propertyOrganizer>
+      <propertyDescriptor groupName="Group.Basic" configurable="true" userDefined="true" describedAttribute="Property.Inputfolder_name">
+        <propertyName xmi:type="utility:TranslatableString" key="Property.Inputfolder_name" bundleName="fileProcess_ACMtoSIMO/MF_myACMtoSIMO" pluginId="App_myACMtoSIMO"/>
+        <propertyDescriptor groupName="Group.Basic" configurable="true" userDefined="true" describedAttribute="Property.Parent_dir">
+          <propertyName xmi:type="utility:TranslatableString" key="Property.Parent_dir" bundleName="fileProcess_ACMtoSIMO/MF_myACMtoSIMO" pluginId="App_myACMtoSIMO"/>
+        </propertyDescriptor>
+      </propertyDescriptor>
+    </propertyOrganizer>
+    <stickyBoard/>
+  </eClassifiers>
+</ecore:EPackage>

@@ -1,0 +1,119 @@
+BROKER SCHEMA fileProcessACMtoSIMOpack
+
+-- Declaring count, retryCount variables for retry mechanism on failure
+DECLARE count SHARED INTEGER 0;
+DECLARE retry_count EXTERNAL INTEGER 0;
+
+-- Declaring mail sender & recipient external variables
+DECLARE mailRecipient EXTERNAL CHARACTER '';
+DECLARE mailRecipient1 EXTERNAL CHARACTER '';
+DECLARE mailSender EXTERNAL CHARACTER '';
+
+CREATE COMPUTE MODULE fileProcessACMtoSIMO_subflow_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE sleep_return BOOLEAN;
+		
+		-- Retry mechanism
+		IF (count < retry_count) THEN
+			SET count = count + 1;
+			SET OutputRoot = InputRoot;
+			SET OutputLocalEnvironment = InputLocalEnvironment;
+			SET sleep_return = SLEEP(30000);	-- 30 seconds	
+
+			-- console logging
+			LOG EVENT VALUES('Unable to send file to SIMO server - Retry count : ', count, 'FileProcess_SIMO_TO_ACM', CURRENT_TIMESTAMP);
+
+			PROPAGATE TO TERMINAL 'out';	-- send it for retry
+			
+		ELSE
+			-- Fetching exception details
+			DECLARE exception_data CHARACTER '';
+			DECLARE My_label CHARACTER;
+			DECLARE error_ref ROW;
+			DECLARE inref REFERENCE TO InputExceptionList.*[1];
+			DECLARE Total_Exc CHARACTER '';
+			
+			-- Code to get actual exception
+			IF (NOT CONTAINS(FIELDNAME(inref.[<]), 'Exception')) THEN
+				-- If lastchild of inref dont contains 'Exception' as substring then below code will get executed
+				SET My_label = FIELDNAME(InputExceptionList.*[1]);
+				SET Total_Exc = Total_Exc ||
+				COALESCE(CAST(inref.Number AS CHARACTER), '') || ':' ||
+				COALESCE(inref.Text, '') || ':' ||
+				COALESCE(inref.Label, '') || '|';
+				SET error_ref = inref;
+			ELSE
+				-- Using while loop we will go to last exception child whose last child dont contains 'Exception' as substring, so that we can get last text field
+				X:WHILE (EXISTS(inref.[])) DO
+					IF (NOT CONTAINS(FIELDNAME(inref.[<]), 'Exception')) THEN
+						SET error_ref = inref;
+						LEAVE X;
+					END IF;
+	
+					SET Total_Exc = Total_Exc ||
+					COALESCE(CAST(inref.Number AS CHARACTER), '') || ':' ||
+					COALESCE(inref.Text, '') || ':' ||
+					COALESCE(inref.Label, '') || '|';
+	
+					SET My_label = FIELDNAME(inref.[<]);
+					MOVE inref LASTCHILD;
+				END WHILE;
+			END IF;
+
+			-- Appending Text field of last exception child in total exception variable
+			SET Total_Exc = Total_Exc || '|' || COALESCE(error_ref.[<].Text, '');
+			SET exception_data = Total_Exc;
+	
+			DECLARE myexc CHARACTER '';
+			DECLARE my_ref REFERENCE TO inref.[>];
+
+			WHILE LASTMOVE(my_ref) DO
+				-- If field name condition
+				IF (EXISTS(my_ref.Text[])) THEN
+					SET myexc = myexc || '| ' || my_ref.Text;
+				END IF;
+				MOVE my_ref NEXTSIBLING;
+			END WHILE;
+
+			SET exception_data = exception_data || '| ' || myexc;
+
+			-- Console logging
+			LOG EVENT VALUES(
+			'Error Details: ',
+			exception_data,
+			'FileProcess_ACM_TO_SIMO',
+			CURRENT_TIMESTAMP
+			);
+
+			-- Setting data to be sent in mail as body
+			SET exception_data =
+			'Hi team, we observed that there is a SFTP Connectivity issue, ' ||
+			'Hence unable to process the file to the destination - SIMO, ' ||
+			'kindly find the attached file';
+
+			SET count = 0;
+	
+			-- Setting Email details
+			SET OutputRoot.EmailOutputHeader.To = mailRecipient || ',' || mailRecipient1;
+			SET OutputRoot.EmailOutputHeader.From = mailSender;
+			SET OutputRoot.EmailOutputHeader.Subject = 'ALERT!!! unable to send the file to SIMO sftp server';
+			-- Prepare email body and attachment
+			SET OutputRoot.BLOB.BLOB = CAST(exception_data AS BLOB CCSID 1208 ENCODING 546);
+			SET OutputLocalEnvironment.Destination.Email.Attachment.Content = InputRoot.BLOB.BLOB;
+			-- Optional: ContentType, ContentEncoding
+			-- SET OutputLocalEnvironment.Destination.Email.Attachment.ContentType = 'text/xml';
+			-- SET OutputLocalEnvironment.Destination.Email.Attachment.ContentEncoding = 'Base64';
+			SET OutputLocalEnvironment.Destination.Email.Attachment.ContentName = InputLocalEnvironment.Destination.File.Name;
+	
+			PROPAGATE TO TERMINAL 'out1';
+			-- out1 is connected to email output node.
+			-- In that node give email policy containing server and port (25)
+			-- For local execution you can directly give server = mail.eidiko-india.com and port = 587
+		END IF;
+
+		-- Returning false, because we dont want to come back to this node after sending mail via out1 terminal
+		RETURN FALSE;
+	
+	END;
+END MODULE;

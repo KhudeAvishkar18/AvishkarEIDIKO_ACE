@@ -1,0 +1,59 @@
+BROKER SCHEMA fileProcessACMtoSIMOpack
+
+CREATE COMPUTE MODULE fileProcessACMtoSIMO_subflow_Compute1
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- Declaring necessary variables
+		DECLARE exception_data CHARACTER '';
+		DECLARE My_label CHARACTER;
+		DECLARE error_ref ROW;
+		DECLARE inref REFERENCE TO InputExceptionList.*[1];
+		DECLARE Total_Exc CHARACTER '';
+		
+		--code to get actual exception
+		IF(NOT CONTAINS(FIELDNAME(inref.[<]),'Exception')) THEN
+			-- If lastchild of inref dont contains 'Exception' as substring then below code will get executed
+			SET My_label = FIELDNAME(InputExceptionList.*[1]);
+			SET Total_Exc = Total_Exc|| COALESCE(CAST(inref.Number as CHARACTER),'') || ':' || COALESCE(inref.Text, '') || ':'|| COALESCE(inref.Label, '') ||'|';
+			SET error_ref=inref;
+		ELSE
+			-- Using while loop we will go to last exception child whose last child dont contains 'Exception' as substring, so that we can get last text field
+			X:WHILE(EXISTS(inref.[])) DO 
+				IF(NOT CONTAINS(FIELDNAME(inref.[<]),'Exception')) THEN
+					SET error_ref = inref;
+					LEAVE X;
+				END IF;
+				
+				SET Total_Exc = Total_Exc|| COALESCE(CAST(inref.Number as CHARACTER),'') || ':' || COALESCE(inref.Text, '') || ':'|| COALESCE(inref.Label, '') ||'|';
+				
+				SET My_label = FIELDNAME(inref.[<]);
+				MOVE inref LASTCHILD;
+			END WHILE;
+		END IF;
+		
+		-- Appending Text field of last exception child in total exception variable
+		SET Total_Exc = Total_Exc||'|'||COALESCE(error_ref.[<].Text,'');
+		SET exception_data = Total_Exc;
+		
+		DECLARE myexc CHARACTER '';
+		DECLARE my_ref REFERENCE TO inref.[>];
+		
+		while LASTMOVE(my_ref) DO
+		 -- IF field name condition
+			 IF(EXISTS(my_ref.Text[]))THEN
+			 
+				SET myexc=myexc||'| '||my_ref.Text;
+			 END IF;
+			 MOVE my_ref NEXTSIBLING;
+		END WHILE;
+		
+		SET exception_data = exception_data || '| ' || myexc;
+		
+		-- console logging
+		LOG EVENT VALUES('Error Details: ', exception_data, 'FileProcess_ACM_TO_SIMO',CURRENT_TIMESTAMP);
+		
+		--LOG EVENT VALUES('SMTP server is down unable to send mail also SFTP connectivity issue unable to process the file','FileProcess_ACM_TO_SIMO');
+		RETURN TRUE;
+	END;
+
+END MODULE;

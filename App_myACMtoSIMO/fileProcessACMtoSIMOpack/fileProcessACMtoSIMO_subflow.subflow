@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ecore:EPackage xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:ComIbmCompute.msgnode="ComIbmCompute.msgnode" xmlns:ComIbmEmailOutput.msgnode="ComIbmEmailOutput.msgnode" xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" xmlns:eflow="http://www.ibm.com/wbi/2005/eflow" xmlns:utility="http://www.ibm.com/wbi/2005/eflow_utility" nsURI="fileProcessACMtoSIMOpack/fileProcessACMtoSIMO_subflow.subflow" nsPrefix="fileProcessACMtoSIMOpack_fileProcessACMtoSIMO_subflow.subflow">
+  <eClassifiers xmi:type="eflow:FCMComposite" name="FCMComposite_1" useDefaults="true" udpSupport="true" nodeLayoutStyle="SQUARE">
+    <eSuperTypes href="http://www.ibm.com/wbi/2005/eflow#//FCMBlock"/>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.retry_count" name="retry_count" defaultValueLiteral="3">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.mailRecipient" name="mailRecipient" defaultValueLiteral="avishkarkhude.eidiko@gmail.com">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.mailRecipient1" name="mailRecipient1" defaultValueLiteral="avishkark18@gmail.com">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.mailSender" name="mailSender" defaultValueLiteral="avishkarchhaban.khude@eidiko-india.com">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <translation xmi:type="utility:TranslatableString" key="fileProcessACMtoSIMO_subflow" bundleName="fileProcessACMtoSIMOpack/fileProcessACMtoSIMO_subflow" pluginId="App_myACMtoSIMO"/>
+    <colorGraphic16 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/App_myACMtoSIMO/icons/full/obj16/fileProcessACMtoSIMO_subflow.gif"/>
+    <colorGraphic32 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/App_myACMtoSIMO/icons/full/obj30/fileProcessACMtoSIMO_subflow.gif"/>
+    <composition>
+      <nodes xmi:type="eflow:FCMSource" xmi:id="InTerminal.Input" location="20,20">
+        <translation xmi:type="utility:TranslatableString" key="InTerminal.Input" bundleName="fileProcessACMtoSIMOpack/fileProcessACMtoSIMO_subflow" pluginId="App_myACMtoSIMO"/>
+      </nodes>
+      <nodes xmi:type="eflow:FCMSink" xmi:id="OutTerminal.Output" location="520,20">
+        <translation xmi:type="utility:TranslatableString" key="OutTerminal.Output" bundleName="fileProcessACMtoSIMOpack/fileProcessACMtoSIMO_subflow" pluginId="App_myACMtoSIMO"/>
+      </nodes>
+      <nodes xmi:type="ComIbmCompute.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_1" location="148,115" transaction="commit" computeExpression="esql://routine/fileProcessACMtoSIMOpack#fileProcessACMtoSIMO_subflow_Compute.Main" computeMode="destinationAndMessage">
+        <translation xmi:type="utility:ConstantString" string="ExceptionHandler"/>
+      </nodes>
+      <nodes xmi:type="ComIbmCompute.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_2" location="502,113" transaction="commit" computeExpression="esql://routine/fileProcessACMtoSIMOpack#fileProcessACMtoSIMO_subflow_Compute1.Main">
+        <translation xmi:type="utility:ConstantString" string="SMTP_ErrorLogging"/>
+      </nodes>
+      <nodes xmi:type="ComIbmEmailOutput.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_3" location="356,117" smtpServer="mail.eidiko-india.com:587">
+        <translation xmi:type="utility:ConstantString" string="EmailSender"/>
+      </nodes>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_1" targetNode="FCMComposite_1_1" sourceNode="InTerminal.Input" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_4" targetNode="FCMComposite_1_2" sourceNode="FCMComposite_1_3" sourceTerminalName="OutTerminal.failure" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_5" targetNode="OutTerminal.Output" sourceNode="FCMComposite_1_1" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_6" targetNode="FCMComposite_1_3" sourceNode="FCMComposite_1_1" sourceTerminalName="OutTerminal.out1" targetTerminalName="InTerminal.in"/>
+    </composition>
+    <propertyOrganizer>
+      <propertyDescriptor groupName="Group.Basic" configurable="true" userDefined="true" describedAttribute="Property.retry_count">
+        <propertyName xmi:type="utility:TranslatableString" key="Property.retry_count" bundleName="fileProcessACMtoSIMOpack/fileProcessACMtoSIMO_subflow" pluginId="App_myACMtoSIMO"/>
+        <propertyDescriptor groupName="Group.Basic" configurable="true" userDefined="true" describedAttribute="Property.mailRecipient">
+          <propertyName xmi:type="utility:TranslatableString" key="Property.mailRecipient" bundleName="fileProcessACMtoSIMOpack/fileProcessACMtoSIMO_subflow" pluginId="App_myACMtoSIMO"/>
+          <propertyDescriptor groupName="Group.Basic" configurable="true" userDefined="true" describedAttribute="Property.mailRecipient1">
+            <propertyName xmi:type="utility:TranslatableString" key="Property.mailRecipient1" bundleName="fileProcessACMtoSIMOpack/fileProcessACMtoSIMO_subflow" pluginId="App_myACMtoSIMO"/>
+            <propertyDescriptor groupName="Group.Basic" configurable="true" userDefined="true" describedAttribute="Property.mailSender">
+              <propertyName xmi:type="utility:TranslatableString" key="Property.mailSender" bundleName="fileProcessACMtoSIMOpack/fileProcessACMtoSIMO_subflow" pluginId="App_myACMtoSIMO"/>
+            </propertyDescriptor>
+          </propertyDescriptor>
+        </propertyDescriptor>
+      </propertyDescriptor>
+    </propertyOrganizer>
+    <stickyBoard/>
+  </eClassifiers>
+</ecore:EPackage>

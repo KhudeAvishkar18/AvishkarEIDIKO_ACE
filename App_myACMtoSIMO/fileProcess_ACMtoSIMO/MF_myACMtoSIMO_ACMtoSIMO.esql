@@ -1,0 +1,81 @@
+
+
+BROKER SCHEMA fileProcess_ACMtoSIMO
+PATH myACMtoSIMO_CommonLibrary;
+
+DECLARE Inputfolder_name EXTERNAL CHARACTER '';
+DECLARE Parent_dir EXTERNAL CHARACTER '';
+
+CREATE COMPUTE MODULE MF_myACMtoSIMO_ACMtoSIMO
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN		
+		-- Declaring necessary variables
+		--DECLARE log_time TIMESTAMP CURRENT_TIMESTAMP;
+		DECLARE Infile_name CHARACTER;
+		DECLARE Infolder_name CHARACTER;			
+		DECLARE fileprocessing CHARACTER;
+		DECLARE status CHARACTER;
+
+		-- Setting environment variables for logging purpose
+		set Environment.APPNAME = ApplicationLabel;
+		set Environment.FLOWNAME = MessageFlowLabel;
+		DECLARE CREATED_ON CHARACTER;
+		set Environment.CREATED_ON = CAST(CURRENT_TIMESTAMP as CHARACTER);
+		
+		-- DECLARE file_name CHARACTER;
+		-- DECLARE folder_name CHARACTER;
+		-- IF(EXISTS(InputLocalEnvironment.WrittenDestination.File[])) THEN
+		--
+		--
+		-- SET file_name =InputLocalEnvironment.Destination.File.Name;
+		-- SET folder_name=InputLocalEnvironment.Destination.File.Remote.ServerDirectory;
+		-- LOG EVENT VALUES('File placed in current date directory',file_name,folder_name,CURRENT_TIMESTAMP);
+		-- RETURN FALSE;
+		--
+		-- ELSE		
+		
+		-- DECLARE Infile_name CHARACTER;
+		-- DECLARE Infolder_name CHARACTER;
+		-- DECLARE file_name CHARACTER;
+		-- DECLARE folder_name CHARACTER;
+
+		SET Infile_name = InputLocalEnvironment.File.Name;
+		--SET Infolder_name='/home/sftpUser/simoOut/DPOUT';
+		SET Environment.fileprocessing = 'file_fetched from ACM';
+		SET Environment.status = 'success';
+		SET Infolder_name = Inputfolder_name;
+		SET Environment.filename = Infile_name;
+		
+		--(new)SET Environment.fileprocessing = 'file_fetched';
+		--(new)SET Environment.status = 'success';
+
+		-- db logging
+		CALL DB_LOGGING_PROC(Environment);
+
+		-- console logging
+		LOG EVENT VALUES('File fetched from ACM static directory',Environment.APPNAME,Environment.FLOWNAME,Infile_name,Infolder_name,CURRENT_TIMESTAMP);
+
+		-- Accessing output directory from external variable
+		DECLARE dir CHARACTER;
+		--'/home/sftpUser/SIMODPOUT/'
+		SET dir=Parent_dir;
+		DECLARE cur_date DATE CURRENT_DATE;
+		DECLARE var CHARACTER;
+		SET var=CAST(cur_date AS CHARACTER FORMAT 'yyyyMMdd');
+
+		-- Setting output message and overriding output directory & fileName
+		SET OutputRoot = InputRoot;
+		-- SET OutputLocalEnvironment.Destination.File.Remote.ServerDirectory = dir||var; -- for sftp
+		SET OutputLocalEnvironment.Destination.File.Directory = dir || var; -- for local in windows
+		SET OutputLocalEnvironment.Destination.File.Name = InputLocalEnvironment.File.Name;
+		
+		--PROPAGATE TO TERMINAL 'out';
+		RETURN TRUE;
+		-- SET file_name =OutputLocalEnvironment.Destination.File.Name;
+		-- SET folder_name=OutputLocalEnvironment.Destination.File.Remote.ServerDirectory;
+		-- LOG EVENT VALUES('File placed in current date directory',file_name,folder_name,CURRENT_TIMESTAMP);
+		--END IF;
+		--RETURN FALSE;
+
+	END;
+END MODULE;

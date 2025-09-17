@@ -1,0 +1,32 @@
+BROKER SCHEMA fileProcess_ACMtoSIMO
+PATH myACMtoSIMO_CommonLibrary;
+
+
+CREATE COMPUTE MODULE MF_myACMtoSIMO_Logging
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+
+		-- Declare necessary variables
+		DECLARE file_name CHARACTER;
+		DECLARE folder_name CHARACTER;
+		SET file_name =InputLocalEnvironment.Destination.File.Name;
+		SET folder_name=InputLocalEnvironment.Destination.File.Remote.ServerDirectory;
+		
+		-- Set environment variables for logging purpose
+		SET Environment.CREATED_ON = CAST(CURRENT_TIMESTAMP as CHARACTER);
+		SET Environment.fileprocessing = 'file_sent to SIMO';
+		SET Environment.status = 'success';
+		SET Environment.APPNAME = ApplicationLabel;
+		SET Environment.FLOWNAME = MessageFlowLabel;
+		SET Environment.filename = file_name;
+		
+		-- db logging
+		CALL DB_LOGGING_PROC(Environment);
+		
+		-- console logging
+		LOG EVENT VALUES('File placed in SIMO current date directory',Environment.APPNAME,Environment.FLOWNAME,file_name,folder_name,CURRENT_TIMESTAMP);
+
+		RETURN FALSE;
+	
+	END;
+END MODULE;
