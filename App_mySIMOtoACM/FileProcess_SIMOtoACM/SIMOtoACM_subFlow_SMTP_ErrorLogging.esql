@@ -1,6 +1,5 @@
 BROKER SCHEMA FileProcess_SIMOtoACM
 
-
 CREATE COMPUTE MODULE SIMOtoACM_subFlow_SMTP_ErrorLogging
 	CREATE FUNCTION Main() RETURNS BOOLEAN
 	BEGIN
@@ -50,9 +49,9 @@ CREATE COMPUTE MODULE SIMOtoACM_subFlow_SMTP_ErrorLogging
 	
 		END WHILE;
 		
-		SET exception_data= exception_data||'| '||myexc;
+		SET exception_data = exception_data || '| ' || myexc;
 		
-		LOG EVENT VALUES('Error Details: ',exception_data,'FileProcess_SIMO_TO_ACM',CURRENT_TIMESTAMP);
+		LOG EVENT VALUES('Error Details: ', exception_data, 'FileProcess_SIMO_TO_ACM',mCURRENT_TIMESTAMP);
 		
 		
 		--LOG EVENT VALUES('SMTP server is down unable to send mail','FileProcess_SIMO_TO_ACM',CURRENT_TIMESTAMP);

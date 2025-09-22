@@ -9,8 +9,9 @@ CREATE COMPUTE MODULE MF_myACMtoSIMO_Logging
 		-- Declare necessary variables
 		DECLARE file_name CHARACTER;
 		DECLARE folder_name CHARACTER;
-		SET file_name =InputLocalEnvironment.Destination.File.Name;
-		SET folder_name=InputLocalEnvironment.Destination.File.Remote.ServerDirectory;
+		SET file_name = InputLocalEnvironment.Destination.File.Name;
+		-- SET folder_name=InputLocalEnvironment.Destination.File.Remote.ServerDirectory; -- for sftp
+		SET folder_name = InputLocalEnvironment.Destination.File.Directory; -- for local execution
 		
 		-- Set environment variables for logging purpose
 		SET Environment.CREATED_ON = CAST(CURRENT_TIMESTAMP as CHARACTER);

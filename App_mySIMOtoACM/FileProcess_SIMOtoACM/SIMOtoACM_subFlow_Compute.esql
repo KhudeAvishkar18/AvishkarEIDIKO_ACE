@@ -50,7 +50,7 @@ CREATE COMPUTE MODULE SIMOtoACM_subFlow_Compute
 						LEAVE X;
 					END IF;
 					
-					SET Total_Exc = Total_Exc|| COALESCE(CAST(inref.Number as CHARACTER),'') || ':' || COALESCE(inref.Text, '') || ':'|| COALESCE(inref.Label, '') ||'|';
+					SET Total_Exc = Total_Exc || COALESCE(CAST(inref.Number as CHARACTER),'') || ':' || COALESCE(inref.Text, '') || ':'|| COALESCE(inref.Label, '') ||'|';
 					
 					SET My_label = FIELDNAME(inref.[<]);
 					MOVE inref LASTCHILD;
