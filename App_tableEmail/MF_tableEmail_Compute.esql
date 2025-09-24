@@ -1,0 +1,36 @@
+
+CREATE COMPUTE MODULE MF_tableEmail_Compute
+	 CREATE FUNCTION Main() RETURNS BOOLEAN
+     BEGIN
+        -- ✅ Ensure we start with a clean OutputRoot
+        DELETE FIELD OutputRoot;
+
+        -- Get reference to array
+        DECLARE persons REFERENCE TO InputRoot.JSON.Data;
+
+		-- Declare html table structure with id and name table headers
+        DECLARE htmlBody CHARACTER 
+            '<html><body><h3>Person List</h3>'
+            || '<table border="1" cellpadding="5" cellspacing="0">'
+            || '<tr>
+            <th style="border: 1px solid black; padding: 8px; background-color: skyblue;">ID</th>
+            <th style="border: 1px solid black; padding: 8px; background-color: skyblue;">Name</th>
+            </tr>';
+
+        -- Iterate through array elements, set them inside td tag
+        DECLARE p REFERENCE TO persons.*[1];
+        WHILE LASTMOVE(p) DO
+            SET htmlBody = htmlBody || '<tr><td>' || CAST(p.id AS CHARACTER)
+                                     || '</td><td>' || p.name || '</td></tr>';
+            MOVE p NEXTSIBLING;
+        END WHILE;
+
+		-- Completing html table
+        SET htmlBody = htmlBody || '</table></body></html>';
+        
+        -- Setting html table as outputroot by converting it into blob, because email output node takes blob data
+        SET OutputRoot.BLOB.BLOB = CAST(htmlBody as BLOB CCSID 1208 ENCODING 546);
+        
+        RETURN TRUE;
+    END;
+END MODULE;
